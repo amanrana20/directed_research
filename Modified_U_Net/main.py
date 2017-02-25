@@ -10,15 +10,10 @@ import numpy as np
 import cv2, os
 import SimpleITK as itk
 import tensorflow as tf
-
-import sys
-
-sys.path.insert(0, 'Modified_U_Net')
 from model import *
 
-
 # Costants
-PATH_TRAINING_DATASET = '../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/training data'
+PATH_TRAINING_DATASET = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/training data'
 EPOCHS = 5
 GENERATOR_BATCH_SIZE = 8
 

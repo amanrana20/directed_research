@@ -10,15 +10,12 @@ import numpy as np
 import cv2, os
 import SimpleITK as itk
 import tensorflow as tf
-
-import sys
-
-sys.path.insert(0, 'Modified_U_Net')
-from model import *
+from Encoder import *
+from Decoder import *
 
 
 # Costants
-PATH_TRAINING_DATASET = '../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/training data'
+PATH_TRAINING_DATASET = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/training data'
 EPOCHS = 5
 GENERATOR_BATCH_SIZE = 8
 
@@ -58,6 +55,26 @@ def get_batch():
 		yield {'X': X, 'Y': Y}
 
 
+def loss_calc(y_true, y_pred, k):
+
+	smooth = 1
+
+	intersection_arr = tf.reduce_sum(tf.multiply(y_true, y_pred), axis=[1, 2])
+
+	numerator = (2 * intersection_arr + smooth)
+	denominator = (tf.reduce_sum(y_true, axis=[1,2]) + tf.reduce_sum(y_pred, axis=[1,2]) + smooth)
+
+	dice_coeffs = numerator / denominator
+	avg_dice_coeff = tf.reduce_sum(dice_coeffs)
+
+	return avg_dice_coeff
+
+
+def calc_loss(y_true, y_pred, k):
+
+    return -loss_calc(y_true, y_pred, k)
+
+
 ## train
 def train():
 
@@ -65,24 +82,30 @@ def train():
 
 		x = tf.placeholder(tf.float32, shape=[None, 512, 512, 1], name='x')
 		y = tf.placeholder(tf.float32, shape=[None, 512, 512, 1], name='y')
-		k = tf.placeholder(tf.float32, name='k')
+		# k = tf.placeholder(tf.float32, name='k')
 
-		init = tf.global_variables_initializer()
+	init = tf.global_variables_initializer()
 
-	prediction = pred(x)
+	k = GENERATOR_BATCH_SIZE
+	
+	prediction = decoder(encoder(x), k)
+
 
 	with tf.name_scope('Loss'):
 
-		loss = dice_coef_loss(y, prediction, k)
+		loss = calc_loss(y, prediction, k)
 		tf.summary.scalar('loss', loss)
 
 
 	with tf.name_scope('Optimizer'):
 
-		optimizer = tf.train.GradientDescentOptimizer(0.1).minimize(loss)
+		optimizer = tf.train.GradientDescentOptimizer(0.00001).minimize(loss)
 
 
 	with tf.Session() as sess:
+
+		merged = tf.summary.merge_all()
+		log_summary = tf.summary.FileWriter('.', sess.graph)
 
 		sess.run(init)
 
@@ -97,18 +120,19 @@ def train():
 
 			# print batch_X.shape, batch_Y.shape
 
-			l, _ = sess.run([loss, optimizer], feed_dict={x: batch_X, y: batch_Y, k: batch_X.shape[0]})
+			_summary, l, _ = sess.run([merged, loss, optimizer], feed_dict={x: batch_X, y: batch_X})
 			
+			log_summary.add_summary(_summary, counter)
+
 			print 'Iteration: {0}\tLoss: {1}'.format(counter, l)
 
-			if counter >= 130:
+			if counter >= 145:
 
 				break
 
 		# correct_pred = dice_coef(pred(x), y, batch_X.shape[0])
 		# accuracy = tf.
-		# merged = tf.summary.merge_all()
-		# tf.summary.FileWriter('.', sess.graph)
+		
 
 
 train()
