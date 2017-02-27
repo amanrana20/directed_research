@@ -59,13 +59,16 @@ def loss_calc(y_true, y_pred, k):
 
 	smooth = 1
 
+	# diff = tf.subtract(y_true, y_pred)
+
+	# sum_of_diff = tf.reduce_sum(diff, axis=[1, 2])
 	intersection_arr = tf.reduce_sum(tf.multiply(y_true, y_pred), axis=[1, 2])
 
 	numerator = (2 * intersection_arr + smooth)
 	denominator = (tf.reduce_sum(y_true, axis=[1,2]) + tf.reduce_sum(y_pred, axis=[1,2]) + smooth)
 
 	dice_coeffs = numerator / denominator
-	avg_dice_coeff = tf.reduce_sum(dice_coeffs)
+	avg_dice_coeff = tf.reduce_mean(dice_coeffs)
 
 	return avg_dice_coeff
 
@@ -82,7 +85,6 @@ def train():
 
 		x = tf.placeholder(tf.float32, shape=[None, 512, 512, 1], name='x')
 		y = tf.placeholder(tf.float32, shape=[None, 512, 512, 1], name='y')
-		# k = tf.placeholder(tf.float32, name='k')
 
 	init = tf.global_variables_initializer()
 
@@ -99,7 +101,7 @@ def train():
 
 	with tf.name_scope('Optimizer'):
 
-		optimizer = tf.train.GradientDescentOptimizer(0.00001).minimize(loss)
+		optimizer = tf.train.GradientDescentOptimizer(0.001).minimize(loss)
 
 
 	with tf.Session() as sess:
@@ -118,8 +120,6 @@ def train():
 			batch_X = np.array(batch['X']).astype('float')
 			batch_Y = np.array(batch['Y']).astype('float')
 
-			# print batch_X.shape, batch_Y.shape
-
 			_summary, l, _ = sess.run([merged, loss, optimizer], feed_dict={x: batch_X, y: batch_X})
 			
 			log_summary.add_summary(_summary, counter)
@@ -129,10 +129,6 @@ def train():
 			if counter >= 145:
 
 				break
-
-		# correct_pred = dice_coef(pred(x), y, batch_X.shape[0])
-		# accuracy = tf.
 		
-
 
 train()
