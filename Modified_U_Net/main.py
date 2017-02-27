@@ -81,6 +81,9 @@ def train():
 
 		sess.run(init)
 
+		merged = tf.summary.merge_all()
+		log_summary = tf.summary.FileWriter('.', sess.graph)
+
 		counter = 0
 
 		for batch in get_batch():
@@ -92,9 +95,11 @@ def train():
 
 			# print batch_X.shape, batch_Y.shape
 
-			l, _ = sess.run([loss, optimizer], feed_dict={x: batch_X, y: batch_Y, k: batch_X.shape[0]})
+			_summary, l, _ = sess.run([merged, loss, optimizer], feed_dict={x: batch_X, y: batch_Y, k: batch_X.shape[0]})
 			
 			print 'Iteration: {0}\tLoss: {1}'.format(counter, l)
+
+			log_summary.add_summary(_summary, counter)
 
 			if counter >= 130:
 
@@ -102,8 +107,6 @@ def train():
 
 		# correct_pred = dice_coef(pred(x), y, batch_X.shape[0])
 		# accuracy = tf.
-		# merged = tf.summary.merge_all()
-		# tf.summary.FileWriter('.', sess.graph)
 
 
 train()
