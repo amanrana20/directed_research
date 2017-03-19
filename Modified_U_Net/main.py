@@ -62,7 +62,7 @@ def train():
 		y = tf.placeholder(tf.float32, shape=[None, 512, 512, 1], name='y')
 		k = tf.placeholder(tf.float32, name='k')
 
-		init = tf.global_variables_initializer()
+	init = tf.global_variables_initializer()
 
 	prediction = pred(x)
 
