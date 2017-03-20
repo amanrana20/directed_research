@@ -12,10 +12,10 @@ import cv2, os
 PATH_BASE = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/Train_Data'
 
 ## Some parameters
-BATCH_SIZE = 16
+BATCH_SIZE = 32
 new_data = True  # This variable tells whethe there is more data or not
-num_positive_samples = 2
-num_negative_samples = 14
+num_positive_samples = 16
+num_negative_samples = 16
 
 ## Create batch generator
 def batch_generator():
@@ -48,8 +48,6 @@ def batch_generator():
 			break
 
 		batch_sample_names = np.array( np.concatenate( [positive_sample_names,	negative_sample_names] ) )
-		
-		# print start_pos_positive, end_pos_positive, start_pos_negative, end_pos_negtive
 
 		counter_positive = end_pos_positive
 		counter_negative = end_pos_negtive
@@ -59,10 +57,10 @@ def batch_generator():
 
 		for i, each_sample_name in enumerate(batch_sample_names):
 
-			folder = 'Cancer' if i < 2 else 'Non Cancer'
+			folder = 'Cancer' if i < num_positive_samples else 'Non Cancer'
 			
 			path_sample = os.path.join(PATH_BASE, folder, each_sample_name)
-			sample_data = np.load(path_sample).reshape([2, 512, 512])
+			sample_data = np.load(path_sample)
 
 			label = np.array([1, 0]) if folder == 'Cancer' else np.array([0, 1])
 
