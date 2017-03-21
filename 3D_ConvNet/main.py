@@ -62,7 +62,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer1'):
 
 			conv1 = tf.nn.conv3d(x, W[1], strides=[1, 1, 1, 1, 1], padding='SAME') + B[1]
-			relu1 = tf.nn.sigmoid(conv1)
+			relu1 = tf.nn.relu(conv1)
 
 			pool1 = tf.nn.max_pool3d(relu1, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -70,7 +70,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer2'):
 
 			conv2 = tf.nn.conv3d(pool1, W[2], strides=[1, 1, 1, 1, 1], padding='SAME') + B[2]
-			relu2 = tf.nn.sigmoid(conv2)
+			relu2 = tf.nn.relu(conv2)
 
 			pool2 = tf.nn.max_pool3d(relu2, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -78,7 +78,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer3'):
 
 			conv3 = tf.nn.conv3d(pool2, W[3], strides=[1, 1, 1, 1, 1], padding='SAME') + B[3]
-			relu3 = tf.nn.sigmoid(conv3)
+			relu3 = tf.nn.relu(conv3)
 
 			pool3 = tf.nn.max_pool3d(relu3, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -86,7 +86,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer4'):
 
 			conv4 = tf.nn.conv3d(pool3, W[4], strides=[1, 1, 1, 1, 1], padding='SAME') + B[4]
-			relu4 = tf.nn.sigmoid(conv4)
+			relu4 = tf.nn.relu(conv4)
 
 			pool4 = tf.nn.max_pool3d(relu4, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -94,7 +94,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer5'):
 
 			conv5 = tf.nn.conv3d(pool4, W[5], strides=[1, 1, 1, 1, 1], padding='SAME') + B[5]
-			relu5 = tf.nn.sigmoid(conv5)
+			relu5 = tf.nn.relu(conv5)
 
 			pool5 = tf.nn.max_pool3d(relu5, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -102,7 +102,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer6'):
 
 			conv6 = tf.nn.conv3d(pool5, W[6], strides=[1, 1, 1, 1, 1], padding='SAME') + B[6]
-			relu6 = tf.nn.sigmoid(conv6)
+			relu6 = tf.nn.relu(conv6)
 
 			pool6 = tf.nn.max_pool3d(relu6, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -110,7 +110,7 @@ def predict(x):
 		with tf.name_scope('ConvLayer7'):
 
 			conv7 = tf.nn.conv3d(pool6, W[7], strides=[1, 1, 1, 1, 1], padding='SAME') + B[7]
-			relu7 = tf.nn.sigmoid(conv7)
+			relu7 = tf.nn.relu(conv7)
 
 			pool7 = tf.nn.max_pool3d(relu7, ksize=[1, 1, 2, 2, 1], strides=[1, 1, 2, 2, 1], padding='SAME')
 
@@ -149,6 +149,7 @@ def train():
 
 		x = tf.placeholder(tf.float32, shape=[None, 3, 128, 128, 1], name='x')
 		y = tf.placeholder(tf.float32, name='y')
+		learning_rate = tf.placeholder(tf.float32, name='Learning_Rate')
 
 
 	init = tf.global_variables_initializer()
@@ -163,7 +164,7 @@ def train():
 
 	with tf.name_scope('Optimizer'):
 
-		optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001).minimize(loss=loss)
+		optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss=loss)
 
 
 	saver = tf.train.Saver()
@@ -178,11 +179,17 @@ def train():
 
 		counter = 0
 
+		lr = 0.01
+
 		for epoch in range(NB_EPOCHS):
 
 			generator = TrainingData.batch_generator()  # Generates a batch of shape 128 x 512 x 512 x 2
 
 			loss_history = []
+
+			## Scheduling the learning rate
+			if epoch+1 % 5 == 0:
+				lr *= 0.1
 
 			for count, batch in enumerate(generator):
 
@@ -193,9 +200,7 @@ def train():
 				batch_y = np.array([Y for _, Y in batch])
 				batch_y = batch_y.astype(np.float32)
 
-				# print batch_x.shape, batch_y.shape
-
-				_summary, p, l, _ = sess.run([merged, prediction, loss, optimizer], feed_dict={x: batch_x, y: batch_y})			
+				_summary, p, l, _ = sess.run([merged, prediction, loss, optimizer], feed_dict={x: batch_x, y: batch_y, learning_rate: lr})			
 				log_summary.add_summary(_summary, counter)
 				loss_history.append(float(l))
 				# print p
@@ -205,8 +210,8 @@ def train():
 				if len(batch) != 32:
 					break
 
-			os.system('mkdir Checkpoints/Epoch_{}_LossHistory_{}'.format(epoch+1, np.mean(loss_history)))
-			save_path = saver.save(sess, 'Checkpoints/Epoch_{}_LossHistory_{}/Model_checkpoint.ckpt'.format(epoch+1, np.mean(loss_history)), global_step=counter)
+			os.system('mkdir Checkpoints/Epoch_{}_lr_{}_LossHistory_{}'.format(epoch+1, lr, np.mean(loss_history)))
+			save_path = saver.save(sess, 'Checkpoints/Epoch_{}_lr_{}_LossHistory_{}/Model_checkpoint.ckpt'.format(epoch+1, lr, np.mean(loss_history)), global_step=counter)
 			print('Saved model to {}'.format(save_path))
 
 
