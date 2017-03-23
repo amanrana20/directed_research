@@ -50,7 +50,35 @@ def convert_to_voxel(x, y, z, origin, spacing):
 
 def get_preprocessed_image(im):
 
-	
+    # threshold HU > -300
+    img[img>-300] = 255
+    img[img<-300] = 0
+    img = np.uint8(img)
+    
+    # find surrounding torso from the threshold and make a mask
+    im2, contours, _ = cv2.findContours(img,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    largest_contour = max(contours, key=cv2.contourArea)
+    mask = np.zeros(img.shape, np.uint8)
+    cv2.fillPoly(mask, [largest_contour], 255)
+    
+    # apply mask to threshold image to remove outside. this is our new mask
+    img = ~img
+    img[(mask == 0)] = 0 # <-- Larger than threshold value
+    
+    # apply closing to the mask
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(15,15))
+    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)  # <- to remove speckles...
+    img = cv2.morphologyEx(img, cv2.MORPH_DILATE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_DILATE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_ERODE, kernel)
+    img = cv2.morphologyEx(img, cv2.MORPH_ERODE, kernel)
+    
+    # apply mask to image
+    img2 = pat[ int(len(pat)/2) ].image.copy()
+    img2[(img == 0)] = -2000 # <-- Larger than threshold value
+
 
 
 def save_sample_to_disk(sample):
