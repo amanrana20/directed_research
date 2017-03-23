@@ -48,10 +48,15 @@ def convert_to_voxel(x, y, z, origin, spacing):
 	return abs(np.rint((np.array([x, y, z]) - np.array(origin)) / spacing).astype('int'))
 
 
+def get_preprocessed_image(im):
+
+	
+
+
 def save_sample_to_disk(sample):
 
 	selected_folder = 'Cancer' if sample['class'] == 1 else 'Non Cancer'
-	sample_save_path = os.path.join(PATH_GENERATED_TRAINING_DATA, selected_folder, '{}.jpg'.format(sample['name']))
+	sample_save_path = os.path.join(PATH_GENERATED_TRAINING_DATA, selected_folder, '{}'.format(sample['name']))
 	np.save(sample_save_path, sample['data'])
 
 
@@ -60,7 +65,7 @@ def create_multiple_positive_images(img, v_x, v_y, v_z, i, Class):
 	for j in range(NUM_SAMPLES_PER_POSITIVE_SAMPLE):
 
 		subset_valid = False
-		lim = 120
+		lim = 100
 
 		while subset_valid == False:
 
@@ -70,7 +75,8 @@ def create_multiple_positive_images(img, v_x, v_y, v_z, i, Class):
 			subset_valid = True
 	
 			if v_y-ry < 0 or v_x-rx < 0 or v_y + (IMAGE_SIZE - ry) > 512 or v_x + (IMAGE_SIZE - rx) > 512:
-				lim -= 1
+
+				lim += 1
 				subset_valid = False
 
 
@@ -95,8 +101,8 @@ def create_multiple_positive_images(img, v_x, v_y, v_z, i, Class):
 # Creating the datase
 def create_dataset():
 
-	# for i in range(21701, len(candidates_data.index)):
-	for i in range(3670, 3680):
+	for i in range(len(candidates_data.index)):
+	# for i in range(3670, 3680):
 		print i
 
 		row = candidates_data.iloc[i]
@@ -106,6 +112,9 @@ def create_dataset():
 		# Scan data
 		scan = itk.ReadImage(os.path.join(PATH_DATASET, scan_id + '.mhd'))
 		img = itk.GetArrayFromImage(scan)
+
+
+		img = get_preprocessed_image(img)
 
 		# Getting the origin and spacing for conversion to voxel
 		origin = scan.GetOrigin()
