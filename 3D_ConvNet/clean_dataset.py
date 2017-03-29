@@ -1,9 +1,10 @@
 import os
 import numpy as np
+from PARAMETERS import *
 
 
-PATH_BASE = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/Train_Data'
-EXTENSIONS = ['Non Cancer']
+PATH_BASE = "/home/amanrana/kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/Train_Data3"
+EXTENSIONS = os.listdir(PATH_BASE)
 
 
 for extension in EXTENSIONS:
@@ -13,10 +14,15 @@ for extension in EXTENSIONS:
 		sample = np.load(os.path.join(PATH_BASE, extension, _file))
 		shape = sample.shape
 
-		if shape != (3, 128, 128):
+		print _file
+
+		if shape != (NUM_SLICES, IMAGE_SIZE, IMAGE_SIZE):
 
 			print shape
-			path = os.path.join('~/kaggle_main/Data\ Science\ Bowl\ Kaggle/dataset/Annotated\ Lung\ Cancer\ Dataset/Train_Data', 'Non\ Cancer', _file)
+			print extension
+			# if extension == 'Non Cancer':
+			# 	extension = 'Non\ Cancer'
+			path = os.path.join(PATH_BASE, extension, _file)
 			print path
-			os.system('rm {}'.format(path))
+			os.remove(path)
 			print '\n'

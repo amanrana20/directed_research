@@ -10,10 +10,8 @@ import tensorflow as tf
 import numpy as np
 import cv2, os
 import get_training_data as TrainingData
+from PARAMETERS import *
 
-
-## Parameters
-NB_EPOCHS = 100
 
 with tf.device('/cpu:0'):
 
@@ -139,7 +137,7 @@ def predict(x):
 			output = tf.nn.softmax(output)
 
 
-	return output
+	return tf.clip_by_value(output, 1e-2, 1.0)
 
 
 def train():
@@ -147,24 +145,23 @@ def train():
 	## Training
 	with tf.name_scope('Placeholders'):
 
-		x = tf.placeholder(tf.float32, shape=[None, 3, 128, 128, 1], name='x')
+		x = tf.placeholder(tf.float32, shape=[None, NUM_SLICES, IMAGE_SIZE, IMAGE_SIZE, 1], name='x')
 		y = tf.placeholder(tf.float32, name='y')
 		learning_rate = tf.placeholder(tf.float32, name='Learning_Rate')
 
 
-	init = tf.global_variables_initializer()
 	prediction = predict(x)
 
 
 	with tf.name_scope('Loss'):
 
-		loss = tf.reduce_sum(tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=prediction))
+		loss = tf.reduce_sum(tf.losses.log_loss(labels=y, predictions=tf.clip_by_value(prediction, 1e-2, 1.0)))
 		tf.summary.scalar('Loss', loss)
 
 
 	with tf.name_scope('Optimizer'):
 
-		optimizer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss=loss)
+		optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss=loss)
 
 
 	saver = tf.train.Saver()
@@ -172,6 +169,7 @@ def train():
 
 	with tf.Session() as sess:
 
+		init = tf.global_variables_initializer()
 		sess.run(init)
 
 		merged = tf.summary.merge_all()
@@ -179,35 +177,33 @@ def train():
 
 		counter = 0
 
-		lr = 0.01
-
 		for epoch in range(NB_EPOCHS):
 
 			generator = TrainingData.batch_generator()  # Generates a batch of shape 128 x 512 x 512 x 2
 
 			loss_history = []
 
-			## Scheduling the learning rate
-			if epoch+1 % 5 == 0:
-				lr *= 0.1
-
 			for count, batch in enumerate(generator):
+
+				lr = LEARNING_RATE
 
 				counter += 1
 				
 				batch_x = np.array([X for X, _ in batch]).astype(np.float32)
-				batch_x = batch_x.reshape([32, 3, 128, 128, 1])
+				batch_x = batch_x.reshape([BATCH_SIZE, NUM_SLICES, IMAGE_SIZE, IMAGE_SIZE, 1])
 				batch_y = np.array([Y for _, Y in batch])
 				batch_y = batch_y.astype(np.float32)
 
 				_summary, p, l, _ = sess.run([merged, prediction, loss, optimizer], feed_dict={x: batch_x, y: batch_y, learning_rate: lr})			
 				log_summary.add_summary(_summary, counter)
 				loss_history.append(float(l))
-				# print p
+				print p
+				print batch_y
+				print lr
 
 				print 'Iteration: {0}\tLoss: {1}'.format(counter, l)
 
-				if len(batch) != 32:
+				if len(batch) != BATCH_SIZE:
 					break
 
 			os.system('mkdir Checkpoints/Epoch_{}_lr_{}_LossHistory_{}'.format(epoch+1, lr, np.mean(loss_history)))

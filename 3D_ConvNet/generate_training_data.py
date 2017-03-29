@@ -8,9 +8,10 @@ Topic: This file contains code to generate small 3D volumes around the annotated
 # Import starements
 import numpy as np # for creating 3D numpy arrays
 import pandas as pd # reading cs files ad processing
-import os, cv2
+import os, cv2, random
 import SimpleITK as itk
 import matplotlib.pyplot as plt
+from PARAMETERS import *
 
 # Some variables
 PATH_BASE = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset'
@@ -19,119 +20,146 @@ CSV_CANDIDATES = os.path.join(PATH_BASE, 'csv files/candidates.csv')
 
 
 ## Some Variables
-IMAGE_SIZE = 128
-N_SLICES_PER_SAMPLE = 3
-NUM_SAMPLES_PER_POSITIVE_SAMPLE = 400
+N_SLICES_PER_SAMPLE = NUM_SLICES
 
 
 # Generated Training data path
-PATH_GENERATED_TRAINING_DATA = os.path.join(PATH_BASE, 'Train_Data')
+PATH_GENERATED_TRAINING_DATA = os.path.join(PATH_BASE, PATH_TO_GENERATE_TRAINING_DATA)
 
 
-# reading data from canditates.csv
+# reading data from canditates.csv, which contains possible nodule candidates - both positive and negative
 candidates_data = pd.read_csv(CSV_CANDIDATES)
 
 
-## Priting some stats
+## Printing some stats
 print 'Number of data pairs in the Dataset: {}\n'.format(len(os.listdir(PATH_DATASET))/2)
 num_samples = candidates_data['seriesuid']
 print 'Number of data rows in the annotated.csv file: {}\n'.format(len(num_samples))
-
-
 num_cancer_cases = len(candidates_data[candidates_data['class'] == 1])
 num_non_cancer_cases = len(candidates_data[candidates_data['class'] == 0])
-print 'Ratio of non-canecr to cancer samples: {} / {} = {}\n'.format(num_non_cancer_cases, num_cancer_cases, 1.0 * num_non_cancer_cases / num_cancer_cases)
+print 'Ratio of non-canecr to cancer samples: {} / {} = {}\n'.format(num_non_cancer_cases, num_cancer_cases, float(num_non_cancer_cases) / float(num_cancer_cases))
 
 
 def convert_to_voxel(x, y, z, origin, spacing):
-	
 	return abs(np.rint((np.array([x, y, z]) - np.array(origin)) / spacing).astype('int'))
 
 
 def get_preprocessed_image(im):
+	for i in range(NUM_SLICES):
+		sl = im[i].copy()
+		# sl = cv2.GaussianBlur(sl, (15, 15), 0)
+		sl[sl > -300] = 255
+		sl[sl < -300] = 0
+		sl1 = np.uint8(sl)
 
-    # threshold HU > -300
-    img[img>-300] = 255
-    img[img<-300] = 0
-    img = np.uint8(img)
-    
-    # find surrounding torso from the threshold and make a mask
-    im2, contours, _ = cv2.findContours(img,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-    largest_contour = max(contours, key=cv2.contourArea)
-    mask = np.zeros(img.shape, np.uint8)
-    cv2.fillPoly(mask, [largest_contour], 255)
-    
-    # apply mask to threshold image to remove outside. this is our new mask
-    img = ~img
-    img[(mask == 0)] = 0 # <-- Larger than threshold value
-    
-    # apply closing to the mask
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(15,15))
-    img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)  # <- to remove speckles...
-    img = cv2.morphologyEx(img, cv2.MORPH_DILATE, kernel)
-    img = cv2.morphologyEx(img, cv2.MORPH_DILATE, kernel)
-    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
-    img = cv2.morphologyEx(img, cv2.MORPH_ERODE, kernel)
-    img = cv2.morphologyEx(img, cv2.MORPH_ERODE, kernel)
-    
-    # apply mask to image
-    img2 = pat[ int(len(pat)/2) ].image.copy()
-    img2[(img == 0)] = -2000 # <-- Larger than threshold value
+		# find surrounding torso from the threshold and make a mask
+		contours, _ = cv2.findContours(sl1, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+		largest_contour = max(contours, key=cv2.contourArea)
+		mask = np.zeros(sl.shape, np.uint8)
+		cv2.fillPoly(mask, [largest_contour], 255)
 
+		# apply mask to threshold image to remove outside. this is our new mask
+		sl = ~sl
+		sl[(mask == 0)] = 0
+
+		# apply closing to the mask
+		kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+		sl = cv2.morphologyEx(sl, cv2.MORPH_OPEN, kernel)  # <- to remove speckles...
+		sl = cv2.morphologyEx(sl, cv2.MORPH_DILATE, kernel)
+		sl = cv2.morphologyEx(sl, cv2.MORPH_DILATE, kernel)
+		sl = cv2.morphologyEx(sl, cv2.MORPH_CLOSE, kernel)
+		sl = cv2.morphologyEx(sl, cv2.MORPH_CLOSE, kernel)
+		sl = cv2.morphologyEx(sl, cv2.MORPH_ERODE, kernel)
+		sl = cv2.morphologyEx(sl, cv2.MORPH_ERODE, kernel)
+
+		f_im = im[i].copy()
+		f_im[sl == 0] = 0
+		f_im[sl < -1] = 0
+
+		im[i] = f_im
+
+	return im
 
 
 def save_sample_to_disk(sample):
-
-	selected_folder = 'Cancer' if sample['class'] == 1 else 'Non Cancer'
+	selected_folder = 'Cancer' if sample['class'] else 'Non Cancer'
 	sample_save_path = os.path.join(PATH_GENERATED_TRAINING_DATA, selected_folder, '{}'.format(sample['name']))
 	np.save(sample_save_path, sample['data'])
 
 
-def create_multiple_positive_images(img, v_x, v_y, v_z, i, Class):
+def get_valid_frame(x, y, r1, r2):
+	a = IMAGE_SIZE-r1
+	b = IMAGE_SIZE-r2
 
-	for j in range(NUM_SAMPLES_PER_POSITIVE_SAMPLE):
-
-		subset_valid = False
-		lim = 100
-
-		while subset_valid == False:
-
-			rx = np.random.randint(0, lim)
-			ry = np.random.randint(0, lim)
-
-			subset_valid = True
+	fr1 = ((x-r1, y-r2), (x+a, y-r2), (x+a, y+b), (x-r1, y+b))
+	fr2 = ((x-a, y-r2), (x+r1, y-r2), (x+r1, y+b), (x-a, y+b))
+	fr3 = ((x-r1, y-b), (x+a, y-b), (x+a, y+r2), (x-r1, y+r2))
+	fr4 = ((x-a, y-b), (x+r1, y-b), (x+r1, y+r2), (x-a, y+r2))
 	
-			if v_y-ry < 0 or v_x-rx < 0 or v_y + (IMAGE_SIZE - ry) > 512 or v_x + (IMAGE_SIZE - rx) > 512:
+	all_possible_frames = [fr1, fr2, fr3, fr4]
+	random.shuffle(all_possible_frames)
 
-				lim += 1
-				subset_valid = False
+	for i, each_frame in enumerate(all_possible_frames):
+		frame_validity = []
+
+		for ptX, ptY in each_frame:
+			if ptX <= 0 or ptX >= SCAN_CROSS_SECTION_SIZE or ptY <= 0 or ptY >= SCAN_CROSS_SECTION_SIZE:
+				frame_validity.append(False)
+			else:
+				frame_validity.append(True)
+
+		if False not in frame_validity:
+			return all_possible_frames[i]
+
+	return False
 
 
-		# print(v_z, v_y-ry, v_y + (IMAGE_SIZE - ry), v_x-rx, v_x + (IMAGE_SIZE - rx))
+def make_valid_sample(img, x, y, cls):
+	subset_valid = False
+	lim = int(0.9 * IMAGE_SIZE)
 
-		image = img[v_z-1: v_z+2, v_y-ry: v_y + (IMAGE_SIZE - ry), v_x-rx: v_x + (IMAGE_SIZE - rx)]
-		# image2 = img[v_z, v_y-ry: v_y + (IMAGE_SIZE - ry), v_x-rx: v_x + (IMAGE_SIZE - rx)]
-		# plt.imshow(image2, cmap='gray')
-		# plt.show()
+	valid_frame = None
 
-		name = '{}_{}_{}_{}_{}'.format(i, v_z, v_y, v_x, j)
+	while not subset_valid:
+		r1 = np.random.randint(5, lim)
+		r2 = np.random.randint(5, lim)
 
+		valid_frame = get_valid_frame(x, y, r1, r2)
+
+		if valid_frame:
+			subset_valid = True
+		else:
+			if lim < IMAGE_SIZE - 5:
+				lim	-= 1
+			subset_valid = False
+
+	p1, p2, p3, p4 = valid_frame
+
+	return img[:, p1[1]: p3[1], p1[0]: p3[0]]
+
+
+def process_samples(img, x, y, z, i, cancer_cls):
+	num_samples_wanted = NUM_SAMPLES_PER_POSITIVE_SAMPLE_PER_SAMPLE if cancer_cls else 1
+	name = '{}_{}_{}_{}'.format(i, z, y, x) if cancer_cls else '{}'.format(i)
+
+	for j in range(num_samples_wanted):
 		sample = {
-					'data': image,
-					'name': name,
-					'class': Class
+					'data': make_valid_sample(img, x, y, cancer_cls),
+					'name': '{}_{}'.format(name, j) if cancer_cls else name,
+					'class': cancer_cls
 				 }
 
 		save_sample_to_disk(sample)
 
 
+def is_cancer(cls):
+	return True if cls == 1 else 0
+
+
 # Creating the datase
 def create_dataset():
-
 	for i in range(len(candidates_data.index)):
-	# for i in range(3670, 3680):
-		print i
+		print 'Row:', i+1
 
 		row = candidates_data.iloc[i]
 		scan_id, posX, posY, posZ, cancer_class = row
@@ -141,9 +169,6 @@ def create_dataset():
 		scan = itk.ReadImage(os.path.join(PATH_DATASET, scan_id + '.mhd'))
 		img = itk.GetArrayFromImage(scan)
 
-
-		img = get_preprocessed_image(img)
-
 		# Getting the origin and spacing for conversion to voxel
 		origin = scan.GetOrigin()
 		spacing = scan.GetSpacing()
@@ -151,20 +176,17 @@ def create_dataset():
 		# Converting the candidate nodule coordinates to voxel
 		posX, posY, posZ = convert_to_voxel(posX, posY, posZ, origin, spacing)
 
-		if cancer_class == 1:
+		isCancer = is_cancer(cancer_class)
 
-			create_multiple_positive_images(img, posX, posY, posZ, i, cancer_class)
+		original = img[posZ-1: posZ+2, :, :]
+
+		# Segmenting the lug tissue
+		segmented_img = get_preprocessed_image(original)
 		
-		else:
+		try:
+			process_samples(segmented_img, posX, posY, posZ, i, isCancer)
+		except:
+			print 'Problem in', i
 
-			sample = {
-						'data': img[posZ-1: posZ+2, posY-63: posY+(IMAGE_SIZE-63), posX-63: posX+(IMAGE_SIZE-63)],
-						'name': '{}'.format(i),
-						'class': cancer_class
-			}
-
-			save_sample_to_disk(sample)
-
-		
 		
 create_dataset()

@@ -6,16 +6,16 @@ Contact: arana@wpi.edu
 
 import numpy as np
 import cv2, os
+from PARAMETERS import *
 
 
 ## File Paths
 PATH_BASE = '../../../kaggle_main/Data Science Bowl Kaggle/dataset/Annotated Lung Cancer Dataset/Train_Data'
 
 ## Some parameters
-BATCH_SIZE = 32
 new_data = True  # This variable tells whethe there is more data or not
-num_positive_samples = 16
-num_negative_samples = 16
+num_positive_samples = BATCH_SIZE / 2
+num_negative_samples = BATCH_SIZE / 2
 
 ## Create batch generator
 def batch_generator():
