@@ -1,6 +1,0 @@
-model_checkpoint_path: "Model_checkpoint.ckpt-406140"
-all_model_checkpoint_paths: "../Epoch_66_lr_0.01_LossHistory_18.2557785369/Model_checkpoint.ckpt-382932"
-all_model_checkpoint_paths: "../Epoch_67_lr_0.01_LossHistory_18.265816058/Model_checkpoint.ckpt-388734"
-all_model_checkpoint_paths: "../Epoch_68_lr_0.01_LossHistory_18.2793310677/Model_checkpoint.ckpt-394536"
-all_model_checkpoint_paths: "../Epoch_69_lr_0.01_LossHistory_18.2151016642/Model_checkpoint.ckpt-400338"
-all_model_checkpoint_paths: "Model_checkpoint.ckpt-406140"

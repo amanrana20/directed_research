@@ -1,3 +1,0 @@
-model_checkpoint_path: "Model_checkpoint.ckpt-2900"
-all_model_checkpoint_paths: "../Epoch_1_lr_1e-05_LossHistory_1.49480464352/Model_checkpoint.ckpt-1450"
-all_model_checkpoint_paths: "Model_checkpoint.ckpt-2900"

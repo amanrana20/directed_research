@@ -1,3 +1,0 @@
-model_checkpoint_path: "Model_checkpoint.ckpt-11604"
-all_model_checkpoint_paths: "../Epoch_1_LossHistory_19.4128094757/Model_checkpoint.ckpt-5802"
-all_model_checkpoint_paths: "Model_checkpoint.ckpt-11604"
